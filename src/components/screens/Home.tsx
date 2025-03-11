@@ -1,19 +1,18 @@
-"use client";
-
-import { useCallback } from "react";
-import Image from "next/image";
+import React, { useCallback, useState } from "react";
 import { motion } from "motion/react";
 
 // Import components
 import Header from "../organisms/Header";
 import Footer from "../organisms/Footer";
 import FileDropZone from "../organisms/FileDropZone";
-import FileList from "../organisms/FileList";
+import FileContent from "../organisms/FileContent";
 import NotificationToast from "../molecules/NotificationToast";
 import ProcessingIndicator from "../molecules/ProcessingIndicator";
+import Sidebar from "../organisms/Sidebar";
 
 // Import hooks and services
 import { useFileManagement } from "../../hooks/useFileManagement";
+import EmptyState from "../molecules/EmptyState";
 
 const Home: React.FC = () => {
   const {
@@ -28,6 +27,8 @@ const Home: React.FC = () => {
     removeFile,
     clearAllFiles,
   } = useFileManagement();
+
+  const [activeFileIndex, setActiveFileIndex] = useState(0);
 
   const handleFilesAccepted = useCallback(
     (acceptedFiles: File[]) => {
@@ -58,66 +59,87 @@ const Home: React.FC = () => {
     },
   ];
 
+  // The active file or undefined if no files
+  const activeFile = files.length > 0 ? files[activeFileIndex] : undefined;
+
   return (
-    <div className="grid grid-rows-[auto_1fr_auto] items-center min-h-screen p-8 gap-8 font-[family-name:var(--font-geist-sans)]">
-      <Header title="Text File Extractor" />
+    <div className="grid grid-rows-[auto_1fr_auto] min-h-screen font-[family-name:var(--font-geist-sans)]">
+      <Header title="Drop and Get Text" />
 
-      <main className="flex flex-col gap-8 w-full max-w-4xl mx-auto">
-        <motion.div
-          className="text-center mb-4"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-        >
-          <h2 className="text-xl font-semibold mb-2">
-            Extract Text from Files
-          </h2>
-          <p className="text-gray-600 dark:text-gray-400">
-            Drop your text files below to extract and view their contents
-          </p>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-        >
-          <FileDropZone
-            onFilesAccepted={handleFilesAccepted}
-            className="h-64 w-full"
-            validationOptions={{ maxFiles: 20 }}
-          />
-        </motion.div>
-
-        {isProcessing && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-          >
-            <ProcessingIndicator
-              processed={processingProgress.processed}
-              total={processingProgress.total}
-              className="mt-4"
+      <main className="flex flex-1 overflow-hidden">
+        {/* Left Sidebar with File List and Upload Zone */}
+        <div className="w-[20em] border-r border-gray-200 dark:border-gray-700 flex flex-col">
+          {/* File Upload Area - Always visible */}
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+            <h2 className="font-medium mb-2">Upload Files</h2>
+            <FileDropZone
+              onFilesAccepted={handleFilesAccepted}
+              className="h-32 w-full"
+              validationOptions={{ maxFiles: 20 }}
             />
-          </motion.div>
-        )}
+            
+            {isProcessing && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+              >
+                <ProcessingIndicator
+                  processed={processingProgress.processed}
+                  total={processingProgress.total}
+                  className="mt-3"
+                />
+              </motion.div>
+            )}
+          </div>
+          
+          {/* File list */}
+          {files.length > 0 ? (
+            <div className="flex-1 overflow-y-auto">
+              <Sidebar
+                files={files}
+                activeFileIndex={activeFileIndex}
+                onSelectFile={setActiveFileIndex}
+                onCopyFile={copyFileContent}
+                onCopyAll={copyAllFiles}
+                onRemoveFile={removeFile}
+                onClearAll={clearAllFiles}
+              />
+            </div>
+          ) : (
+            <div className="flex-1 flex items-center justify-center p-4">
+              <EmptyState
+                icon="info"
+                title="No files yet"
+                description="Upload files to get started"
+              />
+            </div>
+          )}
+        </div>
 
-        {files.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <FileList
-              files={files}
-              onCopyFile={copyFileContent}
-              onCopyAll={copyAllFiles}
-              onRemoveFile={removeFile}
-              onClearAll={clearAllFiles}
+        {/* Main Content Area */}
+        <div className="flex-1 p-6 overflow-y-auto">
+          {activeFile ? (
+            <FileContent
+              file={activeFile}
+              onCopy={() => copyFileContent(activeFile.text, activeFile.name)}
+              onRemove={() => {
+                if (files.length > 1) {
+                  setActiveFileIndex(Math.max(0, activeFileIndex - 1));
+                }
+                removeFile(activeFile.name);
+              }}
             />
-          </motion.div>
-        )}
+          ) : (
+            <div className="h-full flex items-center justify-center">
+              <EmptyState
+                icon="upload"
+                title="No file selected"
+                description="Upload files or select a file to view its contents"
+              />
+            </div>
+          )}
+        </div>
       </main>
 
       <Footer links={footerLinks} />

@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useRef } from "react";
 import { motion } from "motion/react";
 import EmptyState from "../molecules/EmptyState";
+import Icon from "../atoms/Icon";
 
 // Types
 export interface FileValidationOptions {
@@ -15,12 +16,14 @@ interface FileDropZoneProps {
   onFilesAccepted: (files: File[]) => void;
   className?: string;
   validationOptions?: FileValidationOptions;
+  compact?: boolean; // New prop for compact mode
 }
 
 const FileDropZone: React.FC<FileDropZoneProps> = ({
   onFilesAccepted,
   className = "",
   validationOptions = {},
+  compact = false,
 }) => {
   // Default validation options
   const {
@@ -35,6 +38,7 @@ const FileDropZone: React.FC<FileDropZoneProps> = ({
 
   // Refs
   const dropZoneRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Convert MB to bytes
   const maxFileSize = maxFileSizeMB * 1024 * 1024;
@@ -226,11 +230,23 @@ const FileDropZone: React.FC<FileDropZoneProps> = ({
         // Pass valid files to the parent component
         if (validFiles.length > 0) {
           onFilesAccepted(validFiles);
+          
+          // Reset the file input value so the same files can be selected again
+          if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+          }
         }
       }
     },
     [onFilesAccepted, maxFiles, error]
   );
+  
+  // Handle click to open file selector
+  const handleClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
 
   return (
     <div
@@ -239,26 +255,37 @@ const FileDropZone: React.FC<FileDropZoneProps> = ({
         isDragging
           ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
           : "border-dashed border-gray-300 dark:border-gray-700"
-      } rounded-lg p-8 transition-colors ${className}`}
+      } rounded-lg transition-colors ${compact ? "p-3" : "p-8"} ${className}`}
       onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
+      onClick={handleClick}
     >
       <input
+        ref={fileInputRef}
         type="file"
-        className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer"
+        className="hidden"
         onChange={handleFileInputChange}
         multiple
         tabIndex={-1}
       />
 
-      <EmptyState
-        title="Click to upload or drag and drop"
-        description={`Drop up to ${maxFiles} text files or folders`}
-      />
+      {compact ? (
+        <div className="flex items-center justify-center text-center">
+          <Icon type="upload" className="w-6 h-6 mr-2 text-gray-400" />
+          <span className="text-sm text-gray-500 dark:text-gray-400">
+            Drop files here or click to upload
+          </span>
+        </div>
+      ) : (
+        <EmptyState
+          title="Click to upload or drag and drop"
+          description={`Drop up to ${maxFiles} text files or folders`}
+        />
+      )}
 
-      {error && <div className="mt-4 text-sm text-red-500">{error}</div>}
+      {error && <div className="mt-2 text-sm text-red-500">{error}</div>}
     </div>
   );
 };

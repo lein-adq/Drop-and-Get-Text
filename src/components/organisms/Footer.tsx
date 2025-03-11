@@ -17,7 +17,7 @@ interface FooterProps {
 
 const Footer: React.FC<FooterProps> = ({ links }) => {
   return (
-    <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
+    <footer className="border-gray-200 dark:border-gray-700 row-start-3 flex gap-6 flex-wrap items-center justify-center p-4 border-t">
       {links.map((link, index) => (
         <motion.a
           key={index}
