@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useCallback, useRef } from "react";
+import { motion } from "motion/react";
+import EmptyState from "../molecules/EmptyState";
 
 // Types
 export interface FileValidationOptions {
@@ -9,32 +11,16 @@ export interface FileValidationOptions {
   maxFiles?: number;
 }
 
-export interface FileWithStatus {
-  file: File;
-  status: "pending" | "success" | "error";
-  error?: string;
-}
-
-export interface ProcessedFile {
-  name: string;
-  text: string;
-  status: "success" | "error";
-  error?: string;
-}
-
 interface FileDropZoneProps {
   onFilesAccepted: (files: File[]) => void;
   className?: string;
   validationOptions?: FileValidationOptions;
-  renderDropContent?: (isDragging: boolean) => React.ReactNode;
 }
 
-// Component
 const FileDropZone: React.FC<FileDropZoneProps> = ({
   onFilesAccepted,
   className = "",
   validationOptions = {},
-  renderDropContent,
 }) => {
   // Default validation options
   const {
@@ -113,28 +99,87 @@ const FileDropZone: React.FC<FileDropZoneProps> = ({
     return { valid: true };
   };
 
+  // Function to recursively get all files from a directory entry
+  const getAllFilesFromDirectory = async (
+    entry: FileSystemDirectoryEntry
+  ): Promise<File[]> => {
+    const files: File[] = [];
+    const reader = entry.createReader();
+
+    const readEntries = (): Promise<FileSystemEntry[]> => {
+      return new Promise((resolve, reject) => {
+        reader.readEntries(resolve, reject);
+      });
+    };
+
+    const getFile = (fileEntry: FileSystemFileEntry): Promise<File> => {
+      return new Promise((resolve, reject) => {
+        fileEntry.file(resolve, reject);
+      });
+    };
+
+    let entries: FileSystemEntry[] = [];
+    do {
+      const batch = await readEntries();
+      if (!batch.length) break;
+      entries = entries.concat(batch);
+    } while (true);
+
+    for (const entry of entries) {
+      if (entry.isFile) {
+        const file = await getFile(entry as FileSystemFileEntry);
+        files.push(file);
+      } else if (entry.isDirectory) {
+        const subFiles = await getAllFilesFromDirectory(
+          entry as FileSystemDirectoryEntry
+        );
+        files.push(...subFiles);
+      }
+    }
+
+    return files;
+  };
+
   // Handle file drop
   const handleDrop = useCallback(
-    (e: React.DragEvent<HTMLDivElement>) => {
+    async (e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault();
       e.stopPropagation();
       setIsDragging(false);
       setError(null);
 
-      const files = Array.from(e.dataTransfer.files);
+      const items = Array.from(e.dataTransfer.items);
+      const allFiles: File[] = [];
 
-      if (files.length === 0) {
+      for (const item of items) {
+        if (item.kind === "file") {
+          const entry = item.webkitGetAsEntry();
+          if (entry) {
+            if (entry.isDirectory) {
+              const files = await getAllFilesFromDirectory(
+                entry as FileSystemDirectoryEntry
+              );
+              allFiles.push(...files);
+            } else {
+              const file = item.getAsFile();
+              if (file) allFiles.push(file);
+            }
+          }
+        }
+      }
+
+      if (allFiles.length === 0) {
         return;
       }
 
       // Check if too many files are dropped
-      if (files.length > maxFiles) {
+      if (allFiles.length > maxFiles) {
         setError(`Too many files. Maximum allowed: ${maxFiles}`);
         return;
       }
 
       // Validate files
-      const validFiles = files.filter((file) => {
+      const validFiles = allFiles.filter((file) => {
         const validation = validateFile(file);
         if (!validation.valid && validation.error) {
           // Show the first error in the main error display
@@ -187,37 +232,6 @@ const FileDropZone: React.FC<FileDropZoneProps> = ({
     [onFilesAccepted, maxFiles, error]
   );
 
-  // Default drop zone content
-  const defaultDropContent = (
-    <div className="flex flex-col items-center justify-center text-center">
-      <svg
-        className={`w-12 h-12 mb-4 ${
-          isDragging ? "text-blue-500" : "text-gray-400"
-        }`}
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="2"
-          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-        ></path>
-      </svg>
-
-      <p className="mb-2 text-sm text-gray-500 dark:text-gray-400">
-        <span className="font-semibold">Click to upload</span> or drag and drop
-      </p>
-      <p className="text-xs text-gray-500 dark:text-gray-400">
-        Drop up to {maxFiles} text files
-      </p>
-
-      {error && <div className="mt-4 text-sm text-red-500">{error}</div>}
-    </div>
-  );
-
   return (
     <div
       ref={dropZoneRef}
@@ -238,7 +252,13 @@ const FileDropZone: React.FC<FileDropZoneProps> = ({
         multiple
         tabIndex={-1}
       />
-      {renderDropContent ? renderDropContent(isDragging) : defaultDropContent}
+
+      <EmptyState
+        title="Click to upload or drag and drop"
+        description={`Drop up to ${maxFiles} text files or folders`}
+      />
+
+      {error && <div className="mt-4 text-sm text-red-500">{error}</div>}
     </div>
   );
 };

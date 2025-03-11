@@ -2,10 +2,12 @@
 
 import React, { useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import Icon from "../atoms/Icon";
+import { StatusType } from "../atoms/StatusChip";
 
 interface NotificationToastProps {
   message: string;
-  type?: "success" | "error" | "info";
+  type: StatusType;
   duration?: number;
   onClose: () => void;
   className?: string;
@@ -32,57 +34,8 @@ const NotificationToast: React.FC<NotificationToastProps> = ({
     error:
       "bg-red-50 text-red-800 dark:bg-red-900/30 dark:text-red-400 border-red-500",
     info: "bg-blue-50 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border-blue-500",
-  };
-
-  const typeIcons = {
-    success: (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        className="h-5 w-5"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M5 13l4 4L19 7"
-        />
-      </svg>
-    ),
-    error: (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        className="h-5 w-5"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-        />
-      </svg>
-    ),
-    info: (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        className="h-5 w-5"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-        />
-      </svg>
-    ),
+    processing:
+      "bg-blue-50 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border-blue-500",
   };
 
   return (
@@ -106,7 +59,7 @@ const NotificationToast: React.FC<NotificationToastProps> = ({
             transition={{ delay: 0.2 }}
             className="flex-shrink-0"
           >
-            {typeIcons[type]}
+            <Icon type={type} className="h-5 w-5" />
           </motion.div>
           <motion.div
             initial={{ opacity: 0, x: -20 }}
@@ -124,19 +77,7 @@ const NotificationToast: React.FC<NotificationToastProps> = ({
           className="ml-4 inline-flex text-gray-400 hover:text-gray-500 focus:outline-none"
           onClick={onClose}
         >
-          <svg
-            className="h-5 w-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
+          <Icon type="close" className="h-5 w-5" />
         </motion.button>
       </motion.div>
     </AnimatePresence>
